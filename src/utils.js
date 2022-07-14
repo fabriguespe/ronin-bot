@@ -1,4 +1,4 @@
-const QuickChart = require('quickchart-js');
+
 const path = require('path');
 var secrets = require(path.resolve(__dirname, "./Data/secrets"));
 const fetch = require( "node-fetch")

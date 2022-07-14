@@ -1,34 +1,26 @@
 const Command = require("../Structures/Command.js");
-const fetch = require( "node-fetch")
-const { MessageEmbed} = require('discord.js');
 
 module.exports = new Command({
 	name: "help"+(process.env.LOGNAME=='fabrizioguespe'?'t':''),
 	async run(message, args, client) {
 		//Copiar desde aca
-		let db = await DbConnection.Get();
-		let users=await db.collection('users').find({nota:'retiro'}).toArray()
-		users=users.sort(function(a, b) {return parseInt(a.num) - parseInt(b.num)});
 		let slpp=0
 		
-		if(typeof message !== 'undefined' && message.channel)message.channel.send('Procesando los claims pendientes...')
-		for(let i in users){
-			let user=users[i]
-			if(!user.accountAddress || user.accountAddress.length!=46)continue
-			if(typeof args !== 'undefined' && args[2] && user.num!=args[2])continue
-			let data=await utils.getSLP(user.accountAddress,null,false)
-			user.in_game_slp=data.in_game_slp
-			console.log(user.num,data.in_game_slp)
-			if(data.in_game_slp>0){		
-				slpp+=data.in_game_slp
-				message.channel.send('#'+user.num+': Se encontraron '+user.in_game_slp+' SLP sin reclamar')
-				try{
-					await utils.claim(user,message)
-				}catch (e) {
-					utils.log(e,message)
-				}
-			}	
-		}
+		let user=users[i]
+		if(!user.accountAddress || user.accountAddress.length!=46)return
+		if(typeof args !== 'undefined' && args[2] && user.num!=args[2])return
+		let data=await utils.getSLP(user.accountAddress,null,false)
+		user.in_game_slp=data.in_game_slp
+		console.log(user.num,data.in_game_slp)
+		if(data.in_game_slp>0){		
+			slpp+=data.in_game_slp
+			message.channel.send('#'+user.num+': Se encontraron '+user.in_game_slp+' SLP sin reclamar')
+			try{
+				await utils.claim(user,message)
+			}catch (e) {
+				utils.log(e,message)
+			}
+		}	
 		
 		if(typeof message !== 'undefined' && message.channel)utils.log(slpp +'SLP totales con una cantidad de registros: '+users.length,message);
 

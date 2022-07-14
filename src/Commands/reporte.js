@@ -1,10 +1,6 @@
-/** @format */
 const path = require('path');
-
 const Command = require("../Structures/Command.js");
-const fetch = require( "node-fetch")
 const { MessageEmbed} = require('discord.js');
-const QuickChart = require('quickchart-js');
 var utils = require(path.resolve(__dirname, "../utils.js"));
 
 module.exports = new Command({
@@ -13,13 +9,12 @@ module.exports = new Command({
 		if(!utils.esManager(message))return message.channel.send("You don't have the propper rights to run this command.")
 		try{
 			let data=''
-			let eluser = await db.collection('users').findOne({num:args[1]})
-			if(!eluser)return utils.log('User not found',message)
+			let accountAddress=''
 			
 			let axie_count=0
 			if(args.length==2 || args.length==3){
 				message.channel.send("Aguarde un momento...")
-				let axies=await utils.getAxiesIds(eluser.accountAddress.replace('ronin:','0x'))
+				let axies=await utils.getAxiesIds(accountAddress.replace('ronin:','0x'))
 				let axiesdata=[]
 
 				if(axies && axies.axies){
@@ -41,7 +36,7 @@ module.exports = new Command({
 					}
 				}
 				
-				let slp=await utils.getSLP(eluser.accountAddress,message,false)
+				let slp=await utils.getSLP(accountAddress,message,false)
 
 				let exampleEmbed = new MessageEmbed().setColor('#0099ff').setTitle('Jugador #'+args[1]+' ('+axie_count+' Axies)')
 				exampleEmbed.addFields(
@@ -54,19 +49,10 @@ module.exports = new Command({
 					{ name: 'Estado', value: ''+eluser.nota,inline:true},
 				)
 				
-				let stats = await db.collection('log').find({num:eluser.num},  { sort: { timestamp: -1 } }).toArray();
-				let help='No hay'
-				for(let j in stats){
-					if(j==0)help=''
-					let log=stats[j]
-					if(log.type=='status_change')help+='El '+log.date+' se cambio el estado a ***'+log.status+'***\n'
-					else if(log.type=='slp_claim')help+='El '+log.date+' se hizo un claim de ***'+log.slp+'*** SLP\n'
-					else if(log.type=='slp_jugador')help+='El '+log.date+' se retiraron ***'+log.slp+'*** SLP\n'
-				}
 				exampleEmbed.addFields(
-					{ name: 'Wallet', value: '[Link](https://explorer.roninchain.com/address/'+eluser.accountAddress+")",inline:true},
-					{ name: 'JSON', value: '[Link](https://game-api.axie.technology/api/v1/'+eluser.accountAddress+")",inline:true},
-					{ name: 'Axies '+'('+axie_count+')', value: '[Link](https://marketplace.axieinfinity.com/profile/'+eluser.accountAddress+")",inline:true},
+					{ name: 'Wallet', value: '[Link](https://explorer.roninchain.com/address/'+accountAddress+")",inline:true},
+					{ name: 'JSON', value: '[Link](https://game-api.axie.technology/api/v1/'+accountAddress+")",inline:true},
+					{ name: 'Axies '+'('+axie_count+')', value: '[Link](https://marketplace.axieinfinity.com/profile/'+accountAddress+")",inline:true},
 					{ name: 'Pass', value: ''+eluser.pass,inline:true},
 					{ name: 'Puesto', value: 'AxieMasterC',inline:true},
 					{ name: 'Discord', value: ''+eluser.discord,inline:true},
@@ -83,38 +69,6 @@ module.exports = new Command({
 	
 				}
 
-				stats = await db.collection('slp').find({accountAddress:eluser.accountAddress},  { sort: { timestamp: -1 } }).toArray();
-				stats=stats.sort(function(a, b) {return a.timestamp - b.timestamp});
-				data={days:[],slp:[],mmr:[]}
-				for(let i in stats){
-					let stat=stats[i]
-					let anteultimo=stats[i-1]
-					if(stat && anteultimo){
-						if(stat.in_game_slp<anteultimo.in_game_slp)stat['slp']=stat.in_game_slp
-						else stat['slp']=stat.in_game_slp-anteultimo.in_game_slp
-					}
-					data.slp.push(stat['slp'])
-					data.mmr.push(stat['mmr'])
-					data['days'].push(utils.getDayName(stat.date, "es-ES"))
-				}
-
-				let chart = new QuickChart().setConfig({
-					type: 'bar',
-					data: { 
-						labels: data.days,
-						datasets:[{label: 'SLP', data: data.slp}] 
-					},
-				}).setWidth(800).setHeight(400);
-				message.channel.send(`Grafico: ${await chart.getShortUrl()}`);
-
-				chart = new QuickChart().setConfig({
-					type: 'bar',
-					data: { 
-						labels: data.days,
-						datasets:[{label: 'MMR', data: data.mmr}] 
-					},
-				}).setWidth(800).setHeight(400);
-				//message.channel.send(`Grafico: ${await chart.getShortUrl()}`);
 	
 			}else{
 				message.channel.send(`Comando incompleto`);
