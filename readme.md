@@ -42,7 +42,7 @@ For this to work you have to create a file containing all wallets and their priv
 - Transfer tokens or usd (converts usd to slp) from one wallet to another. If only one wallet specified the source will come from main wallet.
 
 ```
-!transfer slp/axs/ron QUANTITY FROM_ACCOUNT FROM_ACCOUNT
+!transfer slp/axs/ron/usd/weth QUANTITY FROM_ACCOUNT FROM_ACCOUNT
 ```
 
 - You can even transfer USD doing a behind the scenes usd/slp conversion. So you can pay someone in USD terms and system will the slp that it needs
@@ -54,6 +54,11 @@ For this to work you have to create a file containing all wallets and their priv
 - User report
 ```
 !report ACCOUNT
+```
+
+- Balance 
+```
+!balance TOKEN ACCOUNT
 ```
 
 - Payment receipt for user

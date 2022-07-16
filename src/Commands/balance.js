@@ -13,6 +13,6 @@ module.exports = new Command({
 		const token=args[1]
 
 		const bal=await utils.balance(token,alias)
-		message.channel.send('Balance '+token+' '+bal)
+		message.channel.send('Balance '+token+': '+bal)
 	}
 });

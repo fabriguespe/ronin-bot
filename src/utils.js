@@ -8,7 +8,6 @@ const Web3 = require('web3');
 var axie_abi = require(path.resolve(__dirname, "./ABI/axie_abi.json"));
 const {MessageEmbed} = require('discord.js');
 
-TABULADORES={uno:60,dos:45,tres:35,cuatro:25}
 
 
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/36.0.1944.0 Safari/537.36"
@@ -100,7 +99,7 @@ module.exports = {
 
 
             if(tr_raw.status){            
-                let embed = new MessageEmbed().setTitle('Exito!').setDescription("La transacción se procesó exitosamente. [Ir al link]("+"https://explorer.roninchain.com/tx/"+tr_raw.transactionHash+")").setColor('GREEN').setTimestamp()
+                let embed = new MessageEmbed().setTitle('Success').setDescription("La transacción se procesó exitosamente. [Ir al link]("+"https://explorer.roninchain.com/tx/"+tr_raw.transactionHash+")").setColor('GREEN').setTimestamp()
                 message.channel.send({content: ` `,embeds: [embed]})
                 logger.debug({tx:tr_raw.transactionHash,type:'slp_claim',timestamp:this.timestamp_log(),date:this.date_log(), slp:data.in_game_slp,num:data.num,from_acc:from_acc})
                 return true
@@ -136,17 +135,16 @@ module.exports = {
             this.log(e,message)
         }
     },
-    cobro:async function(data,message){
+    cobro:async function(data,message,player_wallet){
 
         try{
+            if(!player_wallet)return message.channel.send("Wallet de cobro no existente")
             if(data.in_game_slp>0)await this.claim(data,message)
             let slp_total=data.in_game_slp+data.ronin_slp
             let roni_slp=slp_total-data.jugador_slp
             let jugador_slp=data.jugador_slp
             if(roni_slp==jugador_slp)roni_slp-=1
             let roniPrimero=(roni_slp>=jugador_slp)
-            if(!data.scholarPayoutAddress)return message.channel.send("Wallet de cobro no existente")
-            let player_wallet=data.scholarPayoutAddress.replace('ronin:','0x')
             let roni_wallet=await this.getWalletByAlias("BREED")
             roni_wallet=roni_wallet.replace('ronin:','0x')
             let fallo=false
@@ -212,7 +210,7 @@ module.exports = {
             let tr_raw=await web3.eth.sendSignedTransaction(signed.rawTransaction)
             
             if(tr_raw.status){            
-                let embed = new MessageEmbed().setTitle('Exito!').setDescription("La transacción se procesó exitosamente. [Ir al link]("+"https://explorer.roninchain.com/tx/"+tr_raw.transactionHash+")").setColor('GREEN').setTimestamp()
+                let embed = new MessageEmbed().setTitle('Success').setDescription("La transacción se procesó exitosamente. [Ir al link]("+"https://explorer.roninchain.com/tx/"+tr_raw.transactionHash+")").setColor('GREEN').setTimestamp()
 				logger.debug({tx:tr_raw.transactionHash,type:'axie_transfer',timestamp:this.timestamp_log(),date:this.date_log(), axie_id:axie_id,from_acc:from_acc,to_acc:to_acc})
                 return message.channel.send({content: ` `,embeds: [embed]})
             }        
@@ -267,7 +265,7 @@ module.exports = {
 
             if(tr_raw.status){
                 let tx=tr_raw.transactionHash
-                let embed = new MessageEmbed().setTitle('Exito!').setDescription("La transacción se procesó exitosamente. [Ir al link]("+"https://explorer.roninchain.com/tx/"+tx+")").setColor('GREEN').setTimestamp()
+                let embed = new MessageEmbed().setTitle('Success').setDescription("La transacción se procesó exitosamente. [Ir al link]("+"https://explorer.roninchain.com/tx/"+tx+")").setColor('GREEN').setTimestamp()
                 message.channel.send({content: ` `,embeds: [embed]})   
                 return tx
             }else return false          
@@ -324,7 +322,7 @@ module.exports = {
     claimData:async function(alias,message,panel=true){
         try{
             if(!this.isSafe(alias))return message.channel.send(`Incorrect alias/wallet!`);
-            const accountAddress=await utils.getWalletByAlias(alias)
+            const accountAddress=await this.getWalletByAlias(alias)
             let data=await this.getSLP(accountAddress,message,false)
             let ahora=new Date().getTime()
             let date_ahora=this.FROM_UNIX_EPOCH(ahora/1000)
@@ -337,7 +335,8 @@ module.exports = {
             let slp=data.in_game_slp?data.in_game_slp:data.ronin_slp
             let prom = Math.round(slp/days)
             
-
+            //This is for defining the levels of percentage for the scholar. For example if slm average is 40, then it would be 
+            const TABULADORES={uno:60,dos:45,tres:35,cuatro:25}
             let porcetage=prom<=TABULADORES.cuatro?20:prom<TABULADORES.tres?30:prom<TABULADORES.dos?40:prom<TABULADORES.uno?50:prom>=TABULADORES.uno?60:0;
             
             let arecibir=Math.round(slp/(100/porcetage))
@@ -345,52 +344,29 @@ module.exports = {
             
             embed.addFields(
                 //{ name: 'Precio', value: ''+slp+'USD'},
-                { name: 'ID', value: ''+currentUser.num,inline:true},
-                { name: 'Wallet', value: ''+currentUser.scholarPayoutAddress},
-                { name: 'Comprobantes', value: 'https://explorer.roninchain.com/address/'+currentUser.accountAddress},
-                { name: 'Fecha actual', value: ''+date_ahora,inline:true},
-                { name: 'Ultimo reclamo', value: ''+date_last_claim,inline:true},
-                { name: 'Proximo reclamo', value: ''+date_next_claim,inline:true},
+                { name: 'Transactions', value: 'https://explorer.roninchain.com/address/'+accountAddress},
+                { name: 'Date', value: ''+date_ahora,inline:true},
+                { name: 'Last claim', value: ''+date_last_claim,inline:true},
+                { name: 'Next claim', value: ''+date_next_claim,inline:true},
                 { name: 'SLP Total', value: ''+(slp),inline:true},
-                { name: 'Dias', value: ''+days,inline:true},
-                { name: 'Tu promedio', value: ''+prom,inline:true},
-                { name: 'Porcentaje', value: ''+porcetage+'%',inline:true},
-                { name: 'A recibir', value: ''+arecibir,inline:true},
-                { name: 'Vacio', value: 'Vacio',inline:true},
+                { name: 'Days', value: ''+days,inline:true},
+                { name: 'Average', value: ''+prom,inline:true},
+                { name: 'Percentage', value: ''+porcetage+'%',inline:true},
+                { name: 'To receive', value: ''+arecibir,inline:true},
+                { name: 'Guild', value: ''+(slp-arecibir),inline:true},
             )
 
-			let bono=0
-            //let slp_price= await fetch("https://api.coingecko.com/api/v3/simple/price?ids=smooth-love-potion&vs_currencies=usd", { method: "Get" }).then(res => res.json()).then((json) => { return (Object.values(json)[0].usd)});
-            //let min=15/2/slp_price*(1+(bono/100))
-            /*if(arecibir<min)bono=30
-            min=15/2/slp_price*(1+(bono/100))
-            if(arecibir<min)bono=40
-            min=15/2/slp_price*(1+(bono/100))
-            if(arecibir<min)bono=50
-            */
-            if(bono>0){
-                embed.addFields(
-                    { name: 'Gracias!', value: '😀',inline:true},
-                    { name: 'Bono', value: bono+'%',inline:true},
-                    { name: 'A recibir', value: ''+Math.round(data.in_game_slp/(100/bono)),inline:true}
-                )
-            }
-            embed.addFields(
-                { name: 'Información', value: 'Revisa que tu wallet sea correcta\nTu promedio de SLP se baso en el calculo de los dias y el total acumulado. Si estas de acuerdo escribe "si" para poder cobrar, de lo contrario, "no"'},
-                { name: 'Ajuste', value: 'Debito a que a partir del 9/2/2022 se cambio la cantidad de SLP emitido ahora el tabulador es diferente. Pero para este cobro hubo 9 dias en donde se tiene que ajustar el promedio a la cantidad de SLP anterior. Por eso es que este mes no hay bono pero fuimos generosos en el ajuste de promedio para compensar ese 10%.'},
-            )
+            embed.addFields({ name: 'Information', value: 'Additional information to educate scholars on how to claim their tokens'})
             if(panel)message.channel.send({content: ` `,embeds: [embed]})
 
-
-            porcetage+=bono
-            currentUser.jugador_slp=Math.round(data.in_game_slp/(100/porcetage))
+            data.jugador_slp=Math.round(data.in_game_slp/(100/porcetage))
             if(data.in_game_slp==0 && data.ronin_slp>0)currentUser.jugador_slp=Math.round(data.ronin_slp/(100/porcetage))
             let hours=this.HOURS_NEXT_CLAIM(data.last_claim)
-            currentUser.hours=hours
-            currentUser.in_game_slp=data.in_game_slp
-            currentUser.ronin_slp=data.ronin_slp
-            currentUser.has_to_claim=data.has_to_claim
-            return currentUser
+            data.hours=hours
+            data.in_game_slp=data.in_game_slp
+            data.ronin_slp=data.ronin_slp
+            data.has_to_claim=data.has_to_claim
+            return data
 
         }catch(e){
             this.log(e,message)
