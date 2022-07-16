@@ -9,8 +9,7 @@ var axie_abi = require(path.resolve(__dirname, "./ABI/axie_abi.json"));
 const {MessageEmbed} = require('discord.js');
 
 TABULADORES={uno:60,dos:45,tres:35,cuatro:25}
-DISCORD_JSON=877625345996632095//jeisson
-DISCORD_FABRI=533994454391062529
+
 
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/36.0.1944.0 Safari/537.36"
 TIMEOUT_MINS = 5
@@ -41,21 +40,6 @@ module.exports = {
         if((diadelmes>=(lastDayOfMonth-3) &&  diadelmes<=lastDayOfMonth) || diadelmes>=15 &&  diadelmes<=16) return true
         return false
     },
-    getNumberOfDays(start, end) {
-        const date1 = new Date(start);
-        const date2 = new Date(end);
-    
-        // One day in milliseconds
-        const oneDay = 1000 * 60 * 60 * 24;
-    
-        // Calculating the time difference between two dates
-        const diffInTime = date2.getTime() - date1.getTime();
-    
-        // Calculating the no. of days between two dates
-        const diffInDays = Math.round(diffInTime / oneDay);
-    
-        return diffInDays;
-    },    
     HOURS_NEXT_CLAIM:function(epoch_in_secs){
         let today = new Date();
         let next_claim = new Date(epoch_in_secs * 1000)
@@ -76,24 +60,6 @@ module.exports = {
         let last_claim = new Date(epoch_in_secs * 1000)
         last_claim.setDate(last_claim.getDate() + days)
         return last_claim.toLocaleString("es-ES", {timeZone: "America/Caracas"})
-    },
-    async crearCanalSoporte(num,message){
-		let rSoporte = message.guild.roles.cache.find(r => r.name === "Soporte");
-		let rCategoria = message.guild.channels.cache.find(c => c.id == (args[1]?921106145811263499:utils.esJugador(message)?866879155350143006:909634641030426674) && c.type=='GUILD_CATEGORY');
-        let thread=await message.guild.channels.create('ayuda-', { 
-        type: 'GUILD_TEXT',parent:rCategoria?rCategoria.id:null,permissionOverwrites: [{id: message.author.id,allow: ['VIEW_CHANNEL']},{id: rSoporte.id,allow: ['VIEW_CHANNEL']},{id: message.guild.roles.everyone.id,deny: ['VIEW_CHANNEL']},
-        ]}).then(chan=>{return chan})
-
-        embed = new MessageEmbed().setTitle('Ticket')
-		.setDescription(`Hola ${message.author}, soy Roni. \nPor favor seleccioná una opción tocando el boton correspondiente\nROL:`+(utils.esJugador(message)?'Jugador':'Sin Rol')).setColor('GREEN').setTimestamp()
-		await thread.send({content: ` `,embeds: [embed],components: [row] })
-
-    },
-    mensajeIngresos(tit,msg,message){
-
-        let embed = new MessageEmbed().setTitle(tit).setDescription(msg).setColor('GREEN').setTimestamp()
-        let rCanal = message.guild.channels.cache.find(c => c.id == 909165024642203658);//canal ingresos
-        rCanal.send({content: ` `,embeds: [embed]})
     },
     claim:async function (data,message){
         try{
@@ -158,7 +124,7 @@ module.exports = {
         try{
             if(data.in_game_slp>0)await this.claim(data,message)
             let slp_total=data.in_game_slp+data.ronin_slp
-            let roni_wallet=await this.getWalletByNum("BREED")
+            let roni_wallet=await this.getWalletByAlias("BREED")
             roni_wallet=roni_wallet.replace('ronin:','0x')
             let fallo=false
             try{
@@ -174,7 +140,8 @@ module.exports = {
         }catch(e){
             this.log(e,message)
         }
-    },cobro:async function(data,message){
+    },
+    cobro:async function(data,message){
 
         try{
             if(data.in_game_slp>0)await this.claim(data,message)
@@ -185,7 +152,7 @@ module.exports = {
             let roniPrimero=(roni_slp>=jugador_slp)
             if(!data.scholarPayoutAddress)return message.channel.send("Wallet de cobro no existente")
             let player_wallet=data.scholarPayoutAddress.replace('ronin:','0x')
-            let roni_wallet=await this.getWalletByNum("BREED")
+            let roni_wallet=await this.getWalletByAlias("BREED")
             roni_wallet=roni_wallet.replace('ronin:','0x')
             let fallo=false
             try{
@@ -213,7 +180,8 @@ module.exports = {
     },
     timestamp_log:function(){
         return new Date(Date.now())
-    },date_log:function(){
+    },
+    date_log:function(){
         return new Date().getDate()+'/'+(new Date().getMonth()+1)+'/'+new Date().getFullYear()
     },
     transferAxie:async function(from_acc,to_acc,num_from,num_to,axie_id,message){
@@ -275,7 +243,7 @@ module.exports = {
                 data:myData
             }
     
-            let breed=await this.getWalletByNum("BREED")
+            let breed=await this.getWalletByAlias("BREED")
             breed=breed.replace('ronin:','0x')
             if(to_acc==breed)message.channel.send("Estamos procesando la transacción....");
             else message.channel.send("Enviando "+balance+" SLP a la cuenta del jugador");
@@ -309,6 +277,15 @@ module.exports = {
         let balance = await  contract.methods.balanceOf( web3.utils.toChecksumAddress(from_acc.replace("ronin:", "0x"))).call()
         return balance
     },
+    async getWalletByAlias(alias){
+		let from_private = secrets[alias]   
+        const web3 = await new Web3(new Web3.providers.HttpProvider(RONIN_PROVIDER_FREE));
+		const signer = web3.eth.accounts.privateKeyToAccount(from_private)
+		let wallet=signer.address.replace('0x','ronin:')
+        
+        return wallet
+
+    },
     getMMR:async function(from_acc,message,cache=false){
         try{
             from_acc=from_acc.replace('ronin:','0x')  
@@ -322,35 +299,8 @@ module.exports = {
     getSLP:async function(from_acc,message=null,cache=false){
         try{
             let data={}
-            if(!cache) {
-                //console.log("https://game-api.skymavis.com/game-api/clients/"+from_acc.replace('ronin:','0x')+"/items/1")
-                let jdata=await fetch("https://game-api.skymavis.com/game-api/clients/"+from_acc.replace('ronin:','0x')+"/items/1").then(response => response.json()).then(data => { return data});     
-                if(!jdata || !jdata.blockchain_related){
-                    //console.log(jdata)
-                    jdata=await fetch("https://game-api.skymavis.com/game-api/clients/"+from_acc.replace('ronin:','0x')+"/items/1").then(response => response.json()).then(data => { return data});  
-                    if(!jdata || !jdata.blockchain_related){   
-                        jdata=await fetch("https://game-api.skymavis.com/game-api/clients/"+from_acc.replace('ronin:','0x')+"/items/1").then(response => response.json()).then(data => { return data});  
-                        if(!jdata || !jdata.blockchain_related){   
-                            this.log("error: "+from_acc)
-                            return null
-                        }
-                    }
-                }
-                let balance=jdata.blockchain_related.balance
-                let total=jdata.total-jdata.blockchain_related.balance
-                data= {in_game_slp:total,ronin_slp:balance?balance:0,last_claim:jdata.last_claimed_item_at,has_to_claim:(jdata.claimable_total>0)}
-                
-                try{//MMR
-                    let mmrdata= await fetch("https://game-api.axie.technology/api/v2/"+from_acc.replace('0x','ronin:'), { method: "Get" }).then(res => res.json()).then((json) => { return json})
-                    if(mmrdata.mmr)data.mmr=mmrdata.mmr
-                }catch(e){
-                    utils.log(e,message)
-                }
-                return data
-            }else{
-                let url = "https://game-api.axie.technology/api/v2/"+from_acc.replace('0x','ronin:')  ;
-                data= await fetch(url, { method: "Get" }).then(res => res.json()).then((json) => { return json});
-            }
+            let url = "https://game-api.axie.technology/api/v2/"+from_acc.replace('0x','ronin:')  ;
+            data= await fetch(url, { method: "Get" }).then(res => res.json()).then((json) => { return json});
             return data
 
         }catch(e){
@@ -460,19 +410,6 @@ module.exports = {
         return completo
 
     },
-    getUserIDByUsername:async function(args,message,erase){
-    
-        let completo=this.erase(args,erase)
-        let username=completo.split('#')[0]
-        let discriminator=completo.split('#')[1]
-
-
-        await message.guild.members.fetch()
-        let ingreso=message.guild.members.cache.find(c => {
-        //console.log(c.user.username.toLowerCase().trim(),username,c.user.username.toLowerCase() == username)
-        return (c.user.username.toLowerCase() == username && c.user.discriminator == discriminator) });
-        return ingreso
-    },
     esManager:function(message){
         if(message.author.bot)return true
         let r1=message.guild.roles.cache.find(r => r.name === "Manager")
@@ -554,55 +491,7 @@ module.exports = {
         return dev
 
     },
-    getAliasWallet(alias){
-        alias=alias.toLowerCase()
-        if(alias=='buenos')return 'ronin:4e45277c66da9bbca7f643ddadd5b5297b5e9650'
-        if(alias=='amaloa')return 'ronin:9a9dc8ab2474625cb58bca01beb72759e2c7efaa'
-        if(alias=='pablo' )return 'ronin:f0c889583622f97c67e2fc4cf2a5ce214f7eee8c'
-        if(alias=='jeisson')return 'ronin:9f1c0c36728b3341084adaad489a651394c9e40a'
-        if(alias=='breed')return 'ronin:b1c0e5cb955ac17d9cb42fb4ee6b6ae01b5a9c82'
-        if(alias=='pro')return 'ronin:bfc07b770a4bfab0e9ac114ae2ca8275c701c28e'
-        if(alias=='VENTA')return 'ronin:29e29959cbb316923e57238467e14135d19c16f9'
-        return false
-    },
-    isNumeric(str) {
-        if (typeof str != "string") return false // we only process strings!  
-        return !isNaN(str) && // use type coercion to parse the _entirety_ of the string (`parseFloat` alone does not do this)...
-               !isNaN(parseFloat(str)) // ...and ensure strings of whitespace fail
-    },
     isSafe:function(wallet){
         return wallet.replace('0x','ronin:') in secrets
     },
-    getArrSum(array){
-        let sum=0
-        for(let i in array){
-            sum+=array[i]
-        }
-        return sum
-    },
-    getPaymentName:function(dateStr, locale){
-        var initial =dateStr.split(/\//);
-        let final=[ initial[1], initial[0], initial[2] ].join('/'); 
-        var date = new Date(final);
-
-        Date.prototype.monthNames = [
-            "January", "February", "March","April", "May", "June","July", "August", "September","October", "November", "December"
-        ];
-        Date.prototype.getMonthName = function() {
-            return this.monthNames[this.getMonth()];
-        };
-        Date.prototype.getShortMonthName = function () {
-            return this.getMonthName().substr(0, 3);
-        };
-        if(date.getDate()>=15 && date.getDate()<=16)return "Mid-"+date.getShortMonthName()
-        else if(date.getDate()>=27 )return "End-"+date.getShortMonthName()
-        else return dateStr        
-    },
-    getDayName:function(dateStr, locale){
-        
-        var initial =dateStr.split(/\//);
-        let final=[ initial[1], initial[0], initial[2] ].join('/'); 
-        var date = new Date(final);
-        return initial[0]+'-'+date.toLocaleDateString(locale, { weekday: 'long' });        
-    }
 }

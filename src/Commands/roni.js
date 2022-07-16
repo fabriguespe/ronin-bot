@@ -3,14 +3,12 @@ const path = require('path');
 var utils = require(path.resolve(__dirname, "../utils.js"));
 const Command = require("../Structures/Command.js");
 const { MessageActionRow, MessageButton ,MessageEmbed} = require('discord.js');
-DISCORD_JSON=877625345996632095//jeisson
-DISCORD_FABRI=533994454391062529
+
 
 module.exports = new Command({
-	name: "roni"+(process.env.LOGNAME=='fabrizioguespe'?'t':''),
+	name: "pay",
 	async run(message, args, client) {
-		//if(!utils.esManager(message))return message.channel.send("You don't have the propper rights to run this command.")
-		let esPagos=(utils.esJeissonPagos(message) || utils.esFabri(message) && args[1])
+		let esPagos=(utils.esManager(message) && args[1])
 		if(args[1] && !esPagos)return message.channel.send("You don't have the propper rights to run this command.")
 		let currentUser=args[1]?await utils.getUserByNum(args[1]):await utils.getUserByDiscord(message.author.id)
 		
@@ -23,7 +21,10 @@ module.exports = new Command({
 		}catch(e){
 			console.log("ERROR",e.message)
 		}
+		git add .;git commit -m "commands salvo roni";git push;
 		
+		
+
 		//909634641030426674 INGRESOS //866879155350143006 COMUNIDAD //921106145811263499 PAGOS
 		let rSoporte = message.guild.roles.cache.find(r => r.name === "Soporte");
 		let rCategoria = message.guild.channels.cache.find(c => c.id == (args[1]?921106145811263499:utils.esJugador(message)?866879155350143006:909634641030426674) && c.type=='GUILD_CATEGORY');
@@ -39,19 +40,11 @@ module.exports = new Command({
 		row.addComponents(new MessageButton().setCustomId('ver_datos').setLabel('🎮 Datos de Acceso').setStyle('SUCCESS'));
 		if(utils.esManager(message) || (temporal || utils.esFechaCobros()))row.addComponents(new MessageButton().setCustomId('cobros').setLabel('🤑 Cobrar').setStyle('SUCCESS'));
 		if(utils.esManager(message))row.addComponents(new MessageButton().setCustomId('desasociar').setLabel('☠️ Desasociar').setStyle('DANGER'));
-		//row.addComponents(new MessageButton().setCustomId('ticket_soporte').setLabel('👩🏻‍🚒 Hablar con Soporte').setStyle('PRIMARY'));
-		//row.addComponents(new MessageButton().setCustomId('asociar').setLabel('🗺 Asociar').setStyle('SUCCESS'));
 		
 		embed = new MessageEmbed().setTitle('Ticket')
 		.setDescription(`Hola ${message.author}, soy Roni. \nPor favor seleccioná una opción tocando el boton correspondiente\nROL:`+(utils.esJugador(message)?'Jugador':'Sin Rol')).setColor('GREEN').setTimestamp()
 		await thread.send({content: ` `,embeds: [embed],components: [row] })
 		let lascomnd=''
-		/*const mcollector = thread.createMessageCollector({filter:(m) => m.author.id === message.author.id,max:1})
-		mcollector.on('collect', async message => {
-			if(lascomnd=='desasociar')return utils.desasociar(message)
-			else if(lascomnd=='asociar')return utils.asociar(message)
-		});*/
-
 		const collector = thread.createMessageComponentCollector({ componentType: 'BUTTON'/*, time: 600000*/ });
 		collector.on('collect',  async interaction => {
 			await interaction.deferUpdate();
