@@ -51,9 +51,14 @@ For this to work you have to create a file containing all wallets and their priv
 !transfer usd QUANTITY FROM_ACCOUNT FROM_ACCOUNT
 ```
 
+- User report
+```
+!report ACCOUNT
+```
+
 - Payment receipt for user
 ```
-!roni ACCOUNT
+!pay ACCOUNT
 ```
 
 - Flush account

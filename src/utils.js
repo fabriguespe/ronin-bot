@@ -2,7 +2,7 @@
 const path = require('path');
 var secrets = require(path.resolve(__dirname, "./Data/secrets"));
 const fetch = require( "node-fetch")
-var slp_abi = require(path.resolve(__dirname, "./ABI/slp_abi.json"));
+var token_abi = require(path.resolve(__dirname, "./ABI/token_abi.json"));
 var balance_abi = require(path.resolve(__dirname, "./ABI/balance_abi.json"));
 const Web3 = require('web3');
 var axie_abi = require(path.resolve(__dirname, "./ABI/axie_abi.json"));
@@ -72,7 +72,7 @@ module.exports = {
             
             let signature=jdata.blockchain_related.signature
             const web3 = await new Web3(new Web3.providers.HttpProvider(RONIN_PROVIDER_FREE));
-            let contract = new web3.eth.Contract(slp_abi,web3.utils.toChecksumAddress(SLP_CONTRACT))
+            let contract = new web3.eth.Contract(token_abi,web3.utils.toChecksumAddress(SLP_CONTRACT))
             let nonce = await web3.eth.getTransactionCount(from_acc, function(error, txCount) { return txCount}); 
             
             
@@ -114,11 +114,6 @@ module.exports = {
         if(process.env.LOGNAME=='fabrizioguespe')return true
         return false
     },
-    isProFabri(num){
-        return false//para recordar mis cuentas
-        //mios son 6 equipos puros y 28 tutis
-        return num=='43' || num=='186' || num=='187'|| num=='45'  || num=='21'  
-    },
     cobroRoni:async function(data,message){
 
         try{
@@ -128,7 +123,7 @@ module.exports = {
             roni_wallet=roni_wallet.replace('ronin:','0x')
             let fallo=false
             try{
-                let tx=await this.transfer(data.accountAddress,(roni_wallet),(slp_total),message)
+                let tx=await this.transfer('slp',data.accountAddress,(roni_wallet),(slp_total),message)
                 if(tx)logger.debug({tx:tx,type:'slp_ronimate',timestamp:this.timestamp_log(),date:this.date_log(),num:data.num, slp:(slp_total),num:data.num,from_acc:data.accountAddress,wallet:(roni_wallet)})
                 
             }catch(e){
@@ -156,7 +151,7 @@ module.exports = {
             roni_wallet=roni_wallet.replace('ronin:','0x')
             let fallo=false
             try{
-                let tx=await this.transfer(data.accountAddress,(roniPrimero?roni_wallet:player_wallet),(roniPrimero?roni_slp:jugador_slp),message)
+                let tx=await this.transfer('slp',data.accountAddress,(roniPrimero?roni_wallet:player_wallet),(roniPrimero?roni_slp:jugador_slp),message)
                 if(tx)logger.debug({tx:tx,type:'slp_'+(roniPrimero?'ronimate':'jugador'),timestamp:this.timestamp_log(),date:this.date_log(),num:data.num, slp:(roniPrimero?roni_slp:jugador_slp),num:data.num,from_acc:data.accountAddress,wallet:(roniPrimero?roni_wallet:player_wallet)})
                 
             }catch(e){
@@ -165,7 +160,7 @@ module.exports = {
             }
             roniPrimero=!roniPrimero
             try{
-                let tx=await this.transfer(data.accountAddress,(roniPrimero?roni_wallet:player_wallet),(roniPrimero?roni_slp:jugador_slp),message)
+                let tx=await this.transfer('slp',data.accountAddress,(roniPrimero?roni_wallet:player_wallet),(roniPrimero?roni_slp:jugador_slp),message)
                 
             }catch(e){
                 fallo=true
@@ -184,12 +179,18 @@ module.exports = {
     date_log:function(){
         return new Date().getDate()+'/'+(new Date().getMonth()+1)+'/'+new Date().getFullYear()
     },
-    transferAxie:async function(from_acc,to_acc,num_from,num_to,axie_id,message){
-        if(!this.isSafe(from_acc) || !this.isSafe(to_acc))return message.channel.send(`Una de las wallets esta mal!`);
-        try{
-            
+    transferAxie:async function(from_acc,to_acc,axie_id,message){
+        if(!this.isSafe(from_acc) || !this.isSafe(to_acc))return message.channel.send(`Incorrect alias/wallet!`);
+        let from_private = secrets[from_acc]
+        from_acc=await this.getWalletByAlias(from_acc)
+        to_acc=await this.getWalletByAlias(to_acc)
+        console.log(from_acc,to_acc)
+
+        if(!from_acc)return message.channel.send("Incorrect alias.")
+        if(!to_acc)return message.channel.send("Incorrect alias.")
+
+        try{            
             const web3 = await new Web3(new Web3.providers.HttpProvider(RONIN_PROVIDER_FREE));
-            let from_private = secrets[(from_acc.replace('0x','ronin:'))]
             let axie_contract = new web3.eth.Contract(axie_abi,web3.utils.toChecksumAddress(AXIE_CONTRACT))
             let nonce = await web3.eth.getTransactionCount(from_acc, function(error, txCount) { return txCount}); 
             let myData=axie_contract.methods.safeTransferFrom((web3.utils.toChecksumAddress(from_acc)),(web3.utils.toChecksumAddress(to_acc)),(axie_id)).encodeABI()
@@ -204,7 +205,7 @@ module.exports = {
                     "nonce": nonce,
                     data:myData
             }
-            console.log(trans)
+            console.log(from_private)
                  
             message.channel.send("Success para transferir el Axie: "+axie_id+"\nAguarde un momento...");
             let signed  = await web3.eth.accounts.signTransaction(trans, from_private)
@@ -212,7 +213,7 @@ module.exports = {
             
             if(tr_raw.status){            
                 let embed = new MessageEmbed().setTitle('Exito!').setDescription("La transacción se procesó exitosamente. [Ir al link]("+"https://explorer.roninchain.com/tx/"+tr_raw.transactionHash+")").setColor('GREEN').setTimestamp()
-				logger.debug({tx:tr_raw.transactionHash,type:'axie_transfer',timestamp:this.timestamp_log(),date:this.date_log(), axie_id:axie_id,num_from:num_from,num_to:num_to,from_acc:from_acc,to_acc:to_acc})
+				logger.debug({tx:tr_raw.transactionHash,type:'axie_transfer',timestamp:this.timestamp_log(),date:this.date_log(), axie_id:axie_id,from_acc:from_acc,to_acc:to_acc})
                 return message.channel.send({content: ` `,embeds: [embed]})
             }        
             else message.channel.send("ERROR Status False");
@@ -220,16 +221,26 @@ module.exports = {
             this.log(e,message)
         }
     },
-    transfer:async function(from_acc,to_acc,balance,message){
-        try{
-            from_acc=from_acc.replace('ronin:','0x')
-            to_acc=to_acc.replace('ronin:','0x')
+    transfer:async function(token,from_acc,to_acc,balance,message){
+        let contract_add=''
+        if(token == 'slp') contract_add = SLP_CONTRACT
+        else if(token == 'axs') contract_add = AXS_CONTRACT
+        else if(token == "axies")contract_add = AXIE_CONTRACT
+        else if(token == "weth")contract_add = WETH_CONTRACT
 
+
+        if(!this.isSafe(from_acc) || !this.isSafe(to_acc))return message.channel.send(`Incorrect alias/wallet!`);
+        from_acc=await this.getWalletByAlias(from_acc)
+        if(!from_acc)return message.channel.send("Incorrect alias.")
+        to_acc=await this.getWalletByAlias(to_acc)
+        if(!to_acc)return message.channel.send("Incorrect alias.")
+
+
+        try{
             const web3 = await new Web3(new Web3.providers.HttpProvider(RONIN_PROVIDER_FREE));
             let nonce = await web3.eth.getTransactionCount(from_acc, function(error, txCount) { return txCount}); 
             //nonce+=nonceplus
-            let contract = new web3.eth.Contract(slp_abi,web3.utils.toChecksumAddress(SLP_CONTRACT))
-            
+            let contract = new web3.eth.Contract(token_abi,web3.utils.toChecksumAddress(contract_add))
             let myData=contract.methods.transfer((web3.utils.toChecksumAddress(to_acc)),balance).encodeABI()
             
             let trans={
@@ -238,7 +249,7 @@ module.exports = {
                 "from": from_acc,
                 "gasPrice":await web3.utils.toWei("1", "gwei"),
                 "value": 0,
-                "to": SLP_CONTRACT,
+                "to": contract_add,
                 "nonce": nonce,
                 data:myData
             }
@@ -264,26 +275,29 @@ module.exports = {
             this.log("ERROR:"+e.message,message)
         }
     },
-    balance:async function(from_acc, token='slp'){
-        let contract = SLP_CONTRACT
-        /*if(token == 'slp') contract = SLP_CONTRACT
-        else if(token == 'axs') contract = AXS_CONTRACT
-        else if(token == "axies")contract = AXIE_CONTRACT
-        else if(token == "weth")contract = WETH_CONTRACT
-        else return 0
-        console.log(token,contract)*/
+    balance:async function(token,from_acc){
+
+        let contract_add=''
+        if(token == 'slp') contract_add = SLP_CONTRACT
+        else if(token == 'axs') contract_add = AXS_CONTRACT
+        else if(token == "axies")contract_add = AXIE_CONTRACT
+        else if(token == "weth")contract_add = WETH_CONTRACT
+        
         const web3 = await new Web3(new Web3.providers.HttpProvider(RONIN_PROVIDER));
-        contract = new web3.eth.Contract(balance_abi,web3.utils.toChecksumAddress(contract))
+        let contract = new web3.eth.Contract(balance_abi,web3.utils.toChecksumAddress(contract_add))
+        from_acc=await this.getWalletByAlias(from_acc)
         let balance = await  contract.methods.balanceOf( web3.utils.toChecksumAddress(from_acc.replace("ronin:", "0x"))).call()
         return balance
     },
     async getWalletByAlias(alias){
 		let from_private = secrets[alias]   
         const web3 = await new Web3(new Web3.providers.HttpProvider(RONIN_PROVIDER_FREE));
-		const signer = web3.eth.accounts.privateKeyToAccount(from_private)
-		let wallet=signer.address.replace('0x','ronin:')
-        
-        return wallet
+		if(from_private){
+            const signer = web3.eth.accounts.privateKeyToAccount(from_private)
+		    let wallet=signer.address//.replace('0x','ronin:')
+            return wallet
+        }
+        return false
 
     },
     getMMR:async function(from_acc,message,cache=false){
@@ -307,13 +321,11 @@ module.exports = {
             this.log("ERROR: "+e.message,message)
         }
     },
-    claimData:async function(currentUser,message,panel=true){
+    claimData:async function(alias,message,panel=true){
         try{
-
-            let from_acc=currentUser.accountAddress
-            if(!this.isSafe(from_acc))return message.channel.send(`Una de las wallets esta mal!`);
-
-            let data=await this.getSLP(currentUser.accountAddress,message,false)
+            if(!this.isSafe(alias))return message.channel.send(`Incorrect alias/wallet!`);
+            const accountAddress=await utils.getWalletByAlias(alias)
+            let data=await this.getSLP(accountAddress,message,false)
             let ahora=new Date().getTime()
             let date_ahora=this.FROM_UNIX_EPOCH(ahora/1000)
             let date_last_claim=this.FROM_UNIX_EPOCH(data.last_claim)
@@ -329,7 +341,7 @@ module.exports = {
             let porcetage=prom<=TABULADORES.cuatro?20:prom<TABULADORES.tres?30:prom<TABULADORES.dos?40:prom<TABULADORES.uno?50:prom>=TABULADORES.uno?60:0;
             
             let arecibir=Math.round(slp/(100/porcetage))
-            let embed = new MessageEmbed().setTitle('Calculo').setColor('GREEN').setTimestamp()
+            let embed = new MessageEmbed().setTitle('Calc').setColor('GREEN').setTimestamp()
             
             embed.addFields(
                 //{ name: 'Precio', value: ''+slp+'USD'},
@@ -383,16 +395,6 @@ module.exports = {
         }catch(e){
             this.log(e,message)
         }
-    },
-    esJeissonPagos:function(message){
-        return message.author.id==877625345996632095 && message.channel.name.includes('comandos') 
-    },
-    esIngresos:function(message){
-        if(this.esFabri(message))return true
-        return message.channel.id==909165024642203658//canal entrevistas
-    },
-    esFabri:function(message){
-        return message.author.id==533994454391062529 && message.channel.name.includes('comandos-admin')
     },
     getDiscordDByID:async function(el_id,message){
         await message.guild.members.fetch()
@@ -492,6 +494,6 @@ module.exports = {
 
     },
     isSafe:function(wallet){
-        return wallet.replace('0x','ronin:') in secrets
+        return wallet in secrets
     },
 }

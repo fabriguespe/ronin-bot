@@ -12,10 +12,11 @@ module.exports = new Command({
 		try{		
 			let alias=args[1]
 			const accountAddress=await utils.getWalletByAlias(alias)
+			if(!accountAddress)return message.channel.send("Incorrect alias.")
+			
 			let axie_count=0
 			if(args.length==2 || args.length==3){
-				message.channel.send("Loading...")
-				let axies=await utils.getAxiesIds(accountAddress.replace('ronin:','0x'))
+				let axies=await utils.getAxiesIds(accountAddress)
 				let axiesdata=[]
 				if(axies && axies.axies){
 					for(let i in axies.axies){
@@ -41,7 +42,7 @@ module.exports = new Command({
 					//{ name: 'Precio', value: ''+slp+'USD'},
 					{ name: 'SLP', value: ''+slp.in_game_slp,inline:true},
 					{ name: 'MMR', value: ''+(slp.mmr?slp.mmr:'Error'),inline:true},
-					{ name: 'Axies '+'('+axie_count+')', value: '[Link](https://marketplace.axieinfinity.com/profile/'+accountAddress+")",inline:true},
+					{ name: 'Axies '+'('+axie_count+')', value: '[Link](https://marketplace.axieinfinity.com/profile/'+accountAddress.replace('0x','ronin:')+")",inline:true},
 					{ name: 'Last claim', value: ''+utils.FROM_UNIX_EPOCH(slp.last_claim),inline:true},
 					{ name: 'Next claim', value: ''+utils.ADD_DAYS_TO_UNIX(slp.last_claim,15),inline:true},
 					{ name: 'Transactions', value: '[Link](https://explorer.roninchain.com/address/'+accountAddress+")",inline:true},
